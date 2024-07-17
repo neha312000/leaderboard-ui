@@ -5,7 +5,7 @@ import {getBaseUrl} from './utils/Constants.js';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-import { FormControlLabel, Switch, MenuItem, Select, InputLabel, FormControl, Typography, Box, Button } from '@mui/material';
+import { FormControlLabel, Switch, MenuItem, Select, InputLabel, FormControl, Typography, Box, Button, CircularProgress } from '@mui/material';
 
 
 const Leaderboard = () => {
@@ -14,26 +14,22 @@ const Leaderboard = () => {
     const [intervalId, setIntervalId] = useState(null);
     const [refreshInterval, setRefreshInterval] = useState(2000);
     const [currentPage, setCurrentPage] = useState(1);
+    const [loading, setLoading] = useState(false);
     const gridRef = useRef();
 
-        const onPageChanged = (params) => {
-            const newPage = params.api.paginationGetCurrentPage();
-                    if (newPage !== currentPage) {
-                        setCurrentPage(newPage);
-                        fetchPlayers(newPage)
-                            .then((data) => setPlayers(data))
-                            .catch((error) => console.error('Error fetching data:', error));
-                    }
-        };
+
 
     const fetchPlayers = async (page = 1) => {
             try {
+                setLoading(true);
                 const response = await axios.get(`${getBaseUrl()}/leaderboard/getLeaderBoard`, { params: { page } }
                 );
-                const fetchedPlayers = response.data; // Assuming 'content' contains the paginated data
+                const fetchedPlayers = response.data;
+                setLoading(false);// Assuming 'content' contains the paginated data
                 return fetchedPlayers;
             } catch (error) {
                 console.error('Error fetching data:', error);
+                setLoading(false);
                 return [];
             }
         };
@@ -58,7 +54,10 @@ const Leaderboard = () => {
 
     useEffect(() => {
             if (autoRefresh) {
-                const id = setInterval(() => {setPlayers([]);fetchAllPlayers();}, refreshInterval);
+                const id = setInterval(() => {
+                    setPlayers([]);
+                    setLoading(true);
+                    fetchAllPlayers().then(() => setLoading(false));}, refreshInterval);
                 setIntervalId(id);
                 return () => clearInterval(id);
             } else {
@@ -106,13 +105,23 @@ const Leaderboard = () => {
                                         onChange={(e) => setRefreshInterval(e.target.value)}
                                         label="Refresh Interval"
                                     >
-                                        <MenuItem value={2000}>2 Seconds</MenuItem>
                                         <MenuItem value={5000}>5 Seconds</MenuItem>
+                                        <MenuItem value={10000}>10 Seconds</MenuItem>
                                     </Select>
                                 </FormControl>
                             )}
                         </div>
-                        <div className="ag-theme-alpine ag-grid-container" style={{ width: '50%', height: '500px' }}>
+                <div className="ag-theme-alpine ag-grid-container" style={{ width: '50%', height: '500px' }}>
+                    {loading ? (
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                height: '500px' // Same height as the grid container
+                            }}>
+                                <CircularProgress />
+                            </div>
+                        ) : (
                             <AgGridReact
                                 ref={gridRef}
                                 rowData={players}
@@ -122,6 +131,7 @@ const Leaderboard = () => {
                                 domLayout="autoHeight"
                                 >
                             </AgGridReact>
+                        )}
                         </div>
                     </div>
         );
